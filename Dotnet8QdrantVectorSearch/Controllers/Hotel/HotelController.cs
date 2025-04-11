@@ -63,7 +63,7 @@ public class HotelController : ControllerBase
     /// <param name="searchTerm">要搜索的文本詞語，如"海灘"或"市中心"</param>
     /// <returns>包含最多10個匹配酒店的API響應</returns>
     /// <response code="200">搜索成功，返回匹配的酒店列表</response>
-    public async Task<IActionResult> GenerateEmbeddingAndVectorSearchAsync(string searchTerm)
+    public async Task<IActionResult> GenerateEmbeddingAndVectorSearchAsync(string searchTerm, int top)
     {
         var result = await _qdrantService.GenerateEmbeddingsAndVectorSearchAsync(searchTerm);
         return Ok(ApiResponse<List<HotelSearchResult>>.Success(result));

@@ -246,7 +246,7 @@ public class QdrantService
         }
     }
 
-    public async Task<List<HotelSearchResult>> GenerateEmbeddingsAndVectorSearchAsync(string text)
+    public async Task<List<HotelSearchResult>> GenerateEmbeddingsAndVectorSearchAsync(string text, int top = 10)
     {
         List<HotelSearchResult> hotelSearchResults = new List<HotelSearchResult>();
 
@@ -256,7 +256,7 @@ public class QdrantService
 
         var options = new VectorSearchOptions<Hotel>
         {
-            Top = 10,
+            Top = top,
         };
 
         // Search using the already generated embedding.
