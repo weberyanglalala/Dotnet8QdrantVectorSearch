@@ -15,6 +15,7 @@ public class QdrantService
     private readonly QdrantClient _client;
     private readonly QdrantVectorStore _vectorStore;
     private readonly IVectorStoreRecordCollection<ulong, Hotel> _hotelCollection;
+    private readonly IKeywordHybridSearch<Hotel> _hotelKeywordHybridSearch;
     private readonly Kernel _kernel;
     private readonly ITextEmbeddingGenerationService _embeddingGenerationService;
     private readonly ILogger<QdrantService> _logger;
@@ -27,6 +28,8 @@ public class QdrantService
         _kernel = kernel;
         _logger = logger;
         _embeddingGenerationService = kernel.GetRequiredService<ITextEmbeddingGenerationService>();
+        IVectorStore vectorStore = new QdrantVectorStore(_client);
+        _hotelKeywordHybridSearch = (IKeywordHybridSearch<Hotel>)vectorStore.GetCollection<ulong, Hotel>("skhotels");
     }
 
     public async Task<ReadOnlyMemory<float>> GenerateEmbeddingAsync(string text)
@@ -243,7 +246,7 @@ public class QdrantService
         }
     }
 
-    public async Task<List<HotelSearchResult>> GenerateEmbeddingsAndSearchAsync(string text)
+    public async Task<List<HotelSearchResult>> GenerateEmbeddingsAndVectorSearchAsync(string text)
     {
         List<HotelSearchResult> hotelSearchResults = new List<HotelSearchResult>();
 
@@ -259,6 +262,42 @@ public class QdrantService
         // Search using the already generated embedding.
         VectorSearchResults<Hotel> searchResult =
             await _hotelCollection.VectorizedSearchAsync(searchEmbedding, options);
+
+        await foreach (var result in searchResult.Results)
+        {
+            _logger.LogInformation(
+                $"Score: {result.Score}, Hotel ID: {result.Record.HotelId}, Hotel Name: {result.Record.HotelName}, Hotel Description: {result.Record.Description}");
+            
+            hotelSearchResults.Add(new HotelSearchResult
+            {
+                Score = result.Score ?? 0,
+                HotelId = result.Record.HotelId,
+                HotelName = result.Record.HotelName,
+                Description = result.Record.Description
+            });
+        }
+
+        return hotelSearchResults;
+    }
+
+    public async Task<List<HotelSearchResult>> GenerateEmbeddingsAndHybridSearchAsync(string text, string[] keywords)
+    {
+        List<HotelSearchResult> hotelSearchResults = new List<HotelSearchResult>();
+
+        // Generate the embedding.
+        ReadOnlyMemory<float> searchEmbedding =
+            await GenerateEmbeddingAsync(text);
+
+        var options = new HybridSearchOptions<Hotel>
+        {
+            Top = 10,
+            AdditionalProperty = h => h.Description
+        };
+
+        
+        // Search using the already generated embedding.
+        VectorSearchResults<Hotel> searchResult =
+            await _hotelKeywordHybridSearch.HybridSearchAsync(searchEmbedding, keywords, options);
 
         await foreach (var result in searchResult.Results)
         {
