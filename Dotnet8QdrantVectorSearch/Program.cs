@@ -1,5 +1,5 @@
 using System.Diagnostics.CodeAnalysis;
-using Dotnet8QdrantVectorSearch.Services;
+using Dotnet8QdrantVectorSearch.Services.Qdrant;
 using Microsoft.SemanticKernel;
 using Qdrant.Client;
 

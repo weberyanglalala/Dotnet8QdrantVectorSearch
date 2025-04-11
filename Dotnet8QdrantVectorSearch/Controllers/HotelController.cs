@@ -1,6 +1,7 @@
 using System.Diagnostics.CodeAnalysis;
 using Dotnet8QdrantVectorSearch.Models;
-using Dotnet8QdrantVectorSearch.Services;
+using Dotnet8QdrantVectorSearch.Services.Qdrant;
+using Dotnet8QdrantVectorSearch.Services.Qdrant.Dtos;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Dotnet8QdrantVectorSearch.Controllers;
@@ -27,5 +28,11 @@ public class HotelController : ControllerBase
     {
         await _qdrantService.CreateCollectionIfNotExistsAsync();
         return Ok(ApiResponse<bool>.Success(true));
+    }
+
+    public async Task<IActionResult> GenerateEmbeddingAndSearchAsync(string searchTerm)
+    {
+        var result = await _qdrantService.GenerateEmbeddingsAndSearchAsync(searchTerm);
+        return Ok(ApiResponse<List<HotelSearchResult>>.Success(result));
     }
 }

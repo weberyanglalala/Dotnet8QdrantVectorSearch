@@ -1,12 +1,13 @@
 using System.Diagnostics.CodeAnalysis;
 using Dotnet8QdrantVectorSearch.Models;
+using Dotnet8QdrantVectorSearch.Services.Qdrant.Dtos;
 using Microsoft.Extensions.VectorData;
 using Microsoft.SemanticKernel;
 using Microsoft.SemanticKernel.Connectors.Qdrant;
 using Microsoft.SemanticKernel.Embeddings;
 using Qdrant.Client;
 
-namespace Dotnet8QdrantVectorSearch.Services;
+namespace Dotnet8QdrantVectorSearch.Services.Qdrant;
 
 [Experimental("SKEXP0001")]
 public class QdrantService
@@ -240,5 +241,39 @@ public class QdrantService
                 _logger.LogError($"Error processing hotel {hotel.HotelId} ({hotel.HotelName}): {ex.Message}");
             }
         }
+    }
+
+    public async Task<List<HotelSearchResult>> GenerateEmbeddingsAndSearchAsync(string text)
+    {
+        List<HotelSearchResult> hotelSearchResults = new List<HotelSearchResult>();
+
+        // Generate the embedding.
+        ReadOnlyMemory<float> searchEmbedding =
+            await GenerateEmbeddingAsync(text);
+
+        var options = new VectorSearchOptions<Hotel>
+        {
+            Top = 10,
+        };
+
+        // Search using the already generated embedding.
+        VectorSearchResults<Hotel> searchResult =
+            await _hotelCollection.VectorizedSearchAsync(searchEmbedding, options);
+
+        await foreach (var result in searchResult.Results)
+        {
+            _logger.LogInformation(
+                $"Score: {result.Score}, Hotel ID: {result.Record.HotelId}, Hotel Name: {result.Record.HotelName}, Hotel Description: {result.Record.Description}");
+            
+            hotelSearchResults.Add(new HotelSearchResult
+            {
+                Score = result.Score ?? 0,
+                HotelId = result.Record.HotelId,
+                HotelName = result.Record.HotelName,
+                Description = result.Record.Description
+            });
+        }
+
+        return hotelSearchResults;
     }
 }
