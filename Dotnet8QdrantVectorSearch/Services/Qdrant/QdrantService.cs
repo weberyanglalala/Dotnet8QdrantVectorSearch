@@ -12,23 +12,17 @@ namespace Dotnet8QdrantVectorSearch.Services.Qdrant;
 [Experimental("SKEXP0001")]
 public class QdrantService
 {
-    private readonly QdrantClient _client;
-    private readonly QdrantVectorStore _vectorStore;
     private readonly IVectorStoreRecordCollection<ulong, Hotel> _hotelCollection;
     private readonly IKeywordHybridSearch<Hotel> _hotelKeywordHybridSearch;
-    private readonly Kernel _kernel;
     private readonly ITextEmbeddingGenerationService _embeddingGenerationService;
     private readonly ILogger<QdrantService> _logger;
 
-    public QdrantService(QdrantClient client, Kernel kernel, ILogger<QdrantService> logger)
+    public QdrantService(QdrantClient client, QdrantVectorStore vectorStore, Kernel kernel,
+        ILogger<QdrantService> logger)
     {
-        _client = client;
-        _vectorStore = new QdrantVectorStore(_client);
-        _hotelCollection = _vectorStore.GetCollection<ulong, Hotel>("skhotels");
-        _kernel = kernel;
+        _hotelCollection = vectorStore.GetCollection<ulong, Hotel>("skhotels");
         _logger = logger;
         _embeddingGenerationService = kernel.GetRequiredService<ITextEmbeddingGenerationService>();
-        IVectorStore vectorStore = new QdrantVectorStore(_client);
         _hotelKeywordHybridSearch = (IKeywordHybridSearch<Hotel>)vectorStore.GetCollection<ulong, Hotel>("skhotels");
     }
 
@@ -267,7 +261,7 @@ public class QdrantService
         {
             _logger.LogInformation(
                 $"Score: {result.Score}, Hotel ID: {result.Record.HotelId}, Hotel Name: {result.Record.HotelName}, Hotel Description: {result.Record.Description}");
-            
+
             hotelSearchResults.Add(new HotelSearchResult
             {
                 Score = result.Score ?? 0,
@@ -294,7 +288,7 @@ public class QdrantService
             AdditionalProperty = h => h.Description
         };
 
-        
+
         // Search using the already generated embedding.
         VectorSearchResults<Hotel> searchResult =
             await _hotelKeywordHybridSearch.HybridSearchAsync(searchEmbedding, keywords, options);
@@ -303,7 +297,7 @@ public class QdrantService
         {
             _logger.LogInformation(
                 $"Score: {result.Score}, Hotel ID: {result.Record.HotelId}, Hotel Name: {result.Record.HotelName}, Hotel Description: {result.Record.Description}");
-            
+
             hotelSearchResults.Add(new HotelSearchResult
             {
                 Score = result.Score ?? 0,

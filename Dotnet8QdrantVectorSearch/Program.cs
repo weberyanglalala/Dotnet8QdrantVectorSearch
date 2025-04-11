@@ -1,6 +1,7 @@
 using System.Diagnostics.CodeAnalysis;
 using Dotnet8QdrantVectorSearch.Services.Qdrant;
 using Microsoft.SemanticKernel;
+using Microsoft.SemanticKernel.Connectors.Qdrant;
 using Qdrant.Client;
 
 namespace Dotnet8QdrantVectorSearch;
@@ -20,21 +21,29 @@ public class Program
             apiKey: configuration["Qdrant:ApiKey"] ??
                     throw new InvalidOperationException("Qdrant:ApiKey is not configured.")
         ));
-        
+
+        builder.Services.AddScoped<QdrantVectorStore>(sp =>
+        {
+            var client = sp.GetRequiredService<QdrantClient>();
+            var vectorStore = new QdrantVectorStore(client);
+            return vectorStore;
+        });
+
 
         builder.Services.AddScoped<QdrantService>(sp =>
         {
             var client = sp.GetRequiredService<QdrantClient>();
             var kernel = sp.GetRequiredService<Kernel>();
             var logger = sp.GetRequiredService<ILogger<QdrantService>>();
-            return new QdrantService(client, kernel, logger);
+            var vectorStore = sp.GetRequiredService<QdrantVectorStore>();
+            return new QdrantService(client, vectorStore, kernel, logger);
         });
 
         builder.Services.AddSingleton<Kernel>(sp =>
         {
             var kernelBuilder = Kernel.CreateBuilder();
             var googleGeminiApiKey = configuration["GoogleGeminiApiKey"]
-                               ?? throw new InvalidOperationException("GoogleGeminiApiKey is not configured.");
+                                     ?? throw new InvalidOperationException("GoogleGeminiApiKey is not configured.");
             var openAiApiKey = configuration["OpenAiApiKey"]
                                ?? throw new InvalidOperationException("OpenAiApiKey is not configured.");
             kernelBuilder.Services.AddGoogleAIGeminiChatCompletion("gemini-2.0-flash", googleGeminiApiKey);
