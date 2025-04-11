@@ -26,17 +26,22 @@ public class Program
         {
             var client = sp.GetRequiredService<QdrantClient>();
             var kernel = sp.GetRequiredService<Kernel>();
-            return new QdrantService(client, kernel);
+            var logger = sp.GetRequiredService<ILogger<QdrantService>>();
+            return new QdrantService(client, kernel, logger);
         });
 
         builder.Services.AddSingleton<Kernel>(sp =>
         {
             var kernelBuilder = Kernel.CreateBuilder();
-
+            var googleGeminiApiKey = configuration["GoogleGeminiApiKey"]
+                               ?? throw new InvalidOperationException("GoogleGeminiApiKey is not configured.");
             var openAiApiKey = configuration["OpenAiApiKey"]
                                ?? throw new InvalidOperationException("OpenAiApiKey is not configured.");
-            kernelBuilder.Services.AddOpenAIChatCompletion("gpt-4o-mini", openAiApiKey);
+            kernelBuilder.Services.AddGoogleAIGeminiChatCompletion("gemini-2.0-flash", googleGeminiApiKey);
+            // text-embedding-3-small is a 1536-dimension embedding model
             kernelBuilder.Services.AddOpenAITextEmbeddingGeneration("text-embedding-3-small", openAiApiKey);
+            // gemini-embedding-exp-03-07 is a 3072-dimension embedding model
+            // kernelBuilder.Services.AddGoogleAIEmbeddingGeneration("gemini-embedding-exp-03-07", googleGeminiApiKey);
             return kernelBuilder.Build();
         });
 
