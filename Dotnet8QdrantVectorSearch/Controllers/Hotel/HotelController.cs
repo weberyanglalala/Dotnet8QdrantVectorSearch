@@ -1,6 +1,7 @@
 using System.Diagnostics.CodeAnalysis;
 using Dotnet8QdrantVectorSearch.Controllers.Hotel.Dtos;
 using Dotnet8QdrantVectorSearch.Models;
+using Dotnet8QdrantVectorSearch.Services.Product;
 using Dotnet8QdrantVectorSearch.Services.Qdrant;
 using Dotnet8QdrantVectorSearch.Services.Qdrant.Dtos;
 using Microsoft.AspNetCore.Mvc;
@@ -13,10 +14,12 @@ namespace Dotnet8QdrantVectorSearch.Controllers.Hotel;
 public class HotelController : ControllerBase
 {
     private readonly QdrantService _qdrantService;
+    private readonly ProductChatService _productChatService;
 
-    public HotelController(QdrantService qdrantService)
+    public HotelController(QdrantService qdrantService, ProductChatService productChatService)
     {
         _qdrantService = qdrantService;
+        _productChatService = productChatService;
     }
 
     /// <summary>
@@ -87,5 +90,25 @@ public class HotelController : ControllerBase
     {
         var result = await _qdrantService.GenerateEmbeddingsAndHybridSearchAsync(request.SearchTerm, request.Keywords);
         return Ok(ApiResponse<List<HotelSearchResult>>.Success(result));
+    }
+
+    
+    /// <summary>
+    /// 提供旅館電商專業客服的聊天回應服務
+    /// </summary>
+    /// <remarks>
+    /// 此端點利用 Semantic Kernel 技術與 OpenAI 的聊天完成服務，
+    /// 維護對話上下文並扮演專業旅館電商客服角色，
+    /// 能針對使用者的旅館相關問題提供準確回應。
+    /// 系統會保存聊天歷史以實現連續對話功能，並可自動調用 Kernel 函數增強回應能力。
+    /// </remarks>
+    /// <param name="text">使用者輸入的文本查詢</param>
+    /// <returns>包含旅館客服 AI 回應的 API 響應</returns>
+    /// <response code="200">查詢處理成功，返回對話回應</response>
+    [HttpGet]
+    public async Task<IActionResult> SemanticKernelChatAsync([FromQuery] string text)
+    {
+        var result = await _productChatService.GetResponse(text);
+        return Ok(ApiResponse<string>.Success(result));
     }
 }

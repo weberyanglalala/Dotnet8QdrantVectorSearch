@@ -1,8 +1,12 @@
 using System.Diagnostics.CodeAnalysis;
+using Dotnet8QdrantVectorSearch.Models;
+using Dotnet8QdrantVectorSearch.Services.Product;
 using Dotnet8QdrantVectorSearch.Services.Qdrant;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.SemanticKernel;
 using Microsoft.SemanticKernel.Connectors.Qdrant;
 using Qdrant.Client;
+using Exception = System.Exception;
 
 namespace Dotnet8QdrantVectorSearch;
 
@@ -15,6 +19,22 @@ public class Program
         var configuration = builder.Configuration;
         // Add services to the container.
         builder.Services.AddControllersWithViews();
+        
+        builder.Services.AddDbContext<AvidaDbContext>(options => options.UseSqlServer(configuration.GetConnectionString("DefaultConnection")));
+        builder.Services.AddTransient<ProductServiceByEfCore>();
+        builder.Services.AddTransient<ProductEFCorePlugin>();
+        builder.Services.AddTransient<ProductChatService>(sp =>
+        {
+            var kernelBuilder = Kernel.CreateBuilder();
+            var apiKey = configuration["OpenAiApiKey"]
+                ?? throw new Exception("OpenAiApiKey is not configured.");
+            kernelBuilder.Services.AddOpenAIChatCompletion("gpt-4o-mini", apiKey);
+            var productEfCorePlugin = sp.GetRequiredService<ProductEFCorePlugin>();
+            kernelBuilder.Plugins.AddFromObject(productEfCorePlugin);
+            var kernel = kernelBuilder.Build();
+            return new ProductChatService(kernel);
+        });
+        
         builder.Services.AddSingleton<QdrantClient>(sp => new QdrantClient(
             host: configuration["Qdrant:Host"] ?? throw new InvalidOperationException("Qdrant:Host is not configured."),
             https: true,
